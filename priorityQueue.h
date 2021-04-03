@@ -2,21 +2,21 @@
 #include "main.h"
 typedef struct priorityQueue priorityQueue;
 typedef struct item item;
-
+typedef void (*task)(void);
 // Structure for the elements in the
 // priority queue
 struct item
 {
-	int value;
+	void (*task)(void);
 	int priority;
 };
-void setValue(int value, item *i)
+void setValue(task task, item *i)
 {
-	i->value = value;
+	i->task = task;
 }
-int getValue(item i)
+task getValue(item i)
 {
-	return i.value;
+	return i.task;
 }
 void setPriority(int priority, item *i)
 {
@@ -35,7 +35,6 @@ struct priorityQueue
 
 	// Pointer to the last index
 	int size;
-	//	= -1
 };
 void setSize(int value, priorityQueue *PQ)
 {
@@ -51,7 +50,7 @@ void initialize(priorityQueue *PQ)
 }
 // Function to insert a new element
 // into priority queue
-void enqueue(int value, int priority, priorityQueue *PQ)
+void enqueue(task value, int priority, priorityQueue *PQ)
 {
 	extern UART_HandleTypeDef huart2;
 	// Increase the size
@@ -94,21 +93,21 @@ int peek(priorityQueue PQ)
 
 // Function to remove the element with
 // the highest priority
-void dequeue(priorityQueue PQ)
+void dequeue(priorityQueue *PQ)
 {
 	// Find the position of the element
 	// with highest priority
-	int ind = peek(PQ);
+	int ind = peek(*PQ);
 
 	// Shift the element one index before
 	// from the postion of the element
 	// with highest priortity is found
-	for (int i = ind; i < PQ.size; i++)
+	for (int i = ind; i < PQ->size; i++)
 	{
-		PQ.pr[i] = PQ.pr[i + 1];
+		PQ->pr[i] = PQ->pr[i + 1];
 	}
 
 	// Decrease the size of the
 	// priority queue by one
-	PQ.size--;
+	PQ->size--;
 }
