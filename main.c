@@ -20,7 +20,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "priorityQueue.h";
-
+#include "delayQueue.h";
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -67,6 +67,7 @@ static void MX_USART2_UART_Init(void);
   * @retval int
   */
 priorityQueue PQ;
+delayQueue DQ;
 int tick = 0;
 void printUART(char *c)
 {
@@ -90,9 +91,10 @@ void taskD()
 }
 void Init()
 {
-  priorityQueue PQ;
   initialize(&PQ);
+  initializeDQ(&DQ);
 }
+
 char an[20];
 void Delay(int ms)
 {
@@ -145,14 +147,19 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
     Init();
-    QueTask(taskA, 2, &PQ);
+    /*QueTask(taskA, 2, &PQ);
     QueTask(taskB, 2, &PQ);
     QueTask(taskC, 4, &PQ);
-    QueTask(taskD, 3, &PQ);
+    QueTask(taskD, 3, &PQ);*/
+		QueDelay(taskA, 2, &DQ);
+		QueDelay(taskB, 2, &DQ);
+		QueDelay(taskC, 4, &DQ);
+		QueDelay(taskD, 3, &DQ);
 
     while (1)
     {
-      Dispatch(&PQ);
+      //Dispatch(&PQ);
+			decrement(&DQ);
       Delay(50);
     }
   }
