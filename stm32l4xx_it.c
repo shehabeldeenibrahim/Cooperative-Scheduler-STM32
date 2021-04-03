@@ -185,15 +185,18 @@ void PendSV_Handler(void)
 
 extern int tick;
 int counter = 0;
+extern void decrementInISR();
 void SysTick_Handler(void)
 {
   /* USER CODE BEGIN SysTick_IRQn 0 */
-	counter++;
-	if(counter == 50){
-		counter = 0;
-		tick++;
-		//HAL_UART_Transmit(&huart2, (uint8_t *)"a", sizeof("a"), 10); /* Print to UART */
-	}
+  counter++;
+  if (counter == 50)
+  {
+    decrementInISR();
+    counter = 0;
+    tick++;
+    //HAL_UART_Transmit(&huart2, (uint8_t *)"a", sizeof("a"), 10); /* Print to UART */
+  }
   /* USER CODE END SysTick_IRQn 0 */
   HAL_IncTick();
   /* USER CODE BEGIN SysTick_IRQn 1 */

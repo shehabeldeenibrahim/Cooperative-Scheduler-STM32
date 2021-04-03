@@ -52,7 +52,7 @@ void initializeDQ(delayQueue *PQ)
 // into delay queue
 void QueDelay(task value, int delay, delayQueue *PQ)
 {
-	
+
 	// Increase the size
 	//PQ.size++;
 	setSizeDQ(getSizeDQ(*PQ) + 1, PQ);
@@ -67,7 +67,7 @@ void QueDelay(task value, int delay, delayQueue *PQ)
 // Function to check the top element
 int peekDelay(delayQueue PQ)
 {
-	int lowestDelay = 2147483648;
+	int lowestDelay = 21474836;
 	int ind = -1;
 	// Check for the element with
 	// highest delay
@@ -76,7 +76,7 @@ int peekDelay(delayQueue PQ)
 		// If delay is same choose
 		// the element with the
 		// highest value
-	 if (lowestDelay >= getDelay(PQ.pr[i]))
+		if (lowestDelay >= getDelay(PQ.pr[i]))
 		{
 			lowestDelay = getDelay(PQ.pr[i]);
 			ind = i;
@@ -103,22 +103,23 @@ void dequeueDelay(delayQueue *PQ, int ind)
 	PQ->size--;
 }
 
-void decrement(delayQueue *PQ)
+void decrement(delayQueue *DQ, priorityQueue *PQ)
 {
 	int delay;
-	for (int i = 0; i <= getSizeDQ(*PQ); i++)
+	for (int i = 0; i <= getSizeDQ(*DQ); i++)
 	{
 		// loop on array
 		// decrement delay
-		delay = getDelay(PQ->pr[i]);
+		delay = getDelay(DQ->pr[i]);
 		delay--;
 		// check if delay == 0 -> dequeue and enqueue in ready
 		if (delay <= 0)
 		{
-			PQ->pr[i].task();
-			dequeueDelay(PQ, i);
+			QueTask(DQ->pr[i].task, 6, PQ);
+			//DQ->pr[i].task();
+			dequeueDelay(DQ, i);
 		}
 		else
-			setDelay(delay, &PQ->pr[i]);
+			setDelay(delay, &DQ->pr[i]);
 	}
 }

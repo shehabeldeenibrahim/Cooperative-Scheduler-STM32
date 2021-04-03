@@ -108,7 +108,10 @@ void Delay(int ms)
   //		int a = 0;
   //	}
 }
-
+void decrementInISR()
+{
+  decrement(&DQ, &PQ);
+}
 int main(void)
 {
   /* USER CODE BEGIN 1 */
@@ -151,16 +154,16 @@ int main(void)
     QueTask(taskB, 2, &PQ);
     QueTask(taskC, 4, &PQ);
     QueTask(taskD, 3, &PQ);*/
-		QueDelay(taskA, 2, &DQ);
-		QueDelay(taskB, 2, &DQ);
-		QueDelay(taskC, 4, &DQ);
-		QueDelay(taskD, 3, &DQ);
+    QueDelay(taskA, 2, &DQ);
+    QueDelay(taskB, 2, &DQ);
+    QueDelay(taskC, 4, &DQ);
+    QueDelay(taskD, 3, &DQ);
 
     while (1)
     {
-      //Dispatch(&PQ);
-			decrement(&DQ);
-      Delay(50);
+      Dispatch(&PQ);
+      // decrement(&DQ);
+      // Delay(50);
     }
   }
   /* USER CODE END 3 */

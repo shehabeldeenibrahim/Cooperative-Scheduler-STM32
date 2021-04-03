@@ -112,8 +112,10 @@ void dequeue(priorityQueue *PQ)
 	PQ->size--;
 }
 
-void Dispatch(priorityQueue *PQ){
-	if(PQ->size > 0){
+void Dispatch(priorityQueue *PQ)
+{
+	if (PQ->size >= 0)
+	{
 		int i = peek(*PQ);
 		PQ->pr[i].task();
 		dequeue(PQ);
