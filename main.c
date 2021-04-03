@@ -65,18 +65,32 @@ static void MX_USART2_UART_Init(void);
   * @brief  The application entry point.
   * @retval int
   */
-	void taskA(){
-		HAL_UART_Transmit(&huart2, (uint8_t *)"task A", sizeof("task A"), 10); /* Print to UART */
-	}
-	void taskB(){
-		HAL_UART_Transmit(&huart2, (uint8_t *)"task B", sizeof("task B"), 10); /* Print to UART */
-	}
-	void taskC(){
-		HAL_UART_Transmit(&huart2, (uint8_t *)"task C", sizeof("task C"), 10); /* Print to UART */
-	}
-	void taskD(){
-		HAL_UART_Transmit(&huart2, (uint8_t *)"task D", sizeof("task D"), 10); /* Print to UART */
-	}
+priorityQueue PQ;
+void printUART(char *c)
+{
+  HAL_UART_Transmit(&huart2, (uint8_t *)c, sizeof(c), 10); /* Print to UART */
+}
+void taskA()
+{
+  printUART("A");
+}
+void taskB()
+{
+  printUART("B");
+}
+void taskC()
+{
+  printUART("C");
+}
+void taskD()
+{
+  printUART("D");
+}
+void Init()
+{
+  priorityQueue PQ;
+  initialize(&PQ);
+}
 int main(void)
 {
   /* USER CODE BEGIN 1 */
@@ -109,24 +123,19 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  char an[2];
-	
   while (1)
   {
     /* USER CODE END WHILE */
-    priorityQueue PQ;
-    initialize(&PQ);
-    enqueue(taskA, 2, &PQ);
-    enqueue(taskB, 2, &PQ);
-    enqueue(taskC, 4, &PQ);
-    enqueue(taskD, 3, &PQ);
-    int i = peek(PQ);
-		PQ.pr[i].task();
+    Init();
+    QueTask(taskA, 2, &PQ);
+    QueTask(taskB, 2, &PQ);
+    QueTask(taskC, 4, &PQ);
+    QueTask(taskD, 3, &PQ);
+
+		while(1){
+			Dispatch(&PQ);
+		}
 		
-    dequeue(&PQ);
-    i = peek(PQ);
-    PQ.pr[i].task();
-		break;
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

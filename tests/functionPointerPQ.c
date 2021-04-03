@@ -4,10 +4,10 @@ int main()
 {
     priorityQueue PQ;
     initialize(&PQ);
-    enqueue(10, 2, &PQ);
-    enqueue(14, 2, &PQ);
-    enqueue(16, 4, &PQ);
-    enqueue(12, 3, &PQ);
+    QueTask(10, 2, &PQ);
+    QueTask(14, 2, &PQ);
+    QueTask(16, 4, &PQ);
+    QueTask(12, 3, &PQ);
     //uint8_t i = peek(PQ);
     int i = peek(PQ);
     sprintf(an, "%i", i);

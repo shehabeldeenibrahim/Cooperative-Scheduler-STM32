@@ -50,7 +50,7 @@ void initialize(priorityQueue *PQ)
 }
 // Function to insert a new element
 // into priority queue
-void enqueue(task value, int priority, priorityQueue *PQ)
+void QueTask(task value, int priority, priorityQueue *PQ)
 {
 	extern UART_HandleTypeDef huart2;
 	// Increase the size
@@ -110,4 +110,12 @@ void dequeue(priorityQueue *PQ)
 	// Decrease the size of the
 	// priority queue by one
 	PQ->size--;
+}
+
+void Dispatch(priorityQueue *PQ){
+	if(PQ->size > 0){
+		int i = peek(*PQ);
+		PQ->pr[i].task();
+		dequeue(PQ);
+	}
 }
