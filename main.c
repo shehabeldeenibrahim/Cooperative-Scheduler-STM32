@@ -19,7 +19,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "priorityQueue.h"
+#include "priorityQueue.h";
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -66,6 +67,7 @@ static void MX_USART2_UART_Init(void);
   * @retval int
   */
 priorityQueue PQ;
+int tick = 0;
 void printUART(char *c)
 {
   HAL_UART_Transmit(&huart2, (uint8_t *)c, sizeof(c), 10); /* Print to UART */
@@ -91,6 +93,20 @@ void Init()
   priorityQueue PQ;
   initialize(&PQ);
 }
+char an[20];
+void Delay(int ms)
+{
+  tick = 0;
+  while (tick < ms)
+    sprintf(an, "%i", tick); /* Convert to Char buffer */
+
+  //	while(tick < ms){
+  //		sprintf(an, "%i", tick);                       /* Convert to Char buffer */
+  //		HAL_UART_Transmit(&huart2, (uint8_t *)an, sizeof(an), 10); /* Print to UART */
+  //		int a = 0;
+  //	}
+}
+
 int main(void)
 {
   /* USER CODE BEGIN 1 */
@@ -126,17 +142,19 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
     Init();
     QueTask(taskA, 2, &PQ);
     QueTask(taskB, 2, &PQ);
     QueTask(taskC, 4, &PQ);
     QueTask(taskD, 3, &PQ);
 
-		while(1){
-			Dispatch(&PQ);
-		}
-		
-    /* USER CODE BEGIN 3 */
+    while (1)
+    {
+      Dispatch(&PQ);
+      Delay(50);
+    }
   }
   /* USER CODE END 3 */
 }
@@ -293,28 +311,6 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
-
-/**
-  * @brief  Period elapsed callback in non blocking mode
-  * @note   This function is called  when TIM1 interrupt took place, inside
-  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
-  * a global variable "uwTick" used as application time base.
-  * @param  htim : TIM handle
-  * @retval None
-  */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-  /* USER CODE BEGIN Callback 0 */
-
-  /* USER CODE END Callback 0 */
-  if (htim->Instance == TIM1)
-  {
-    HAL_IncTick();
-  }
-  /* USER CODE BEGIN Callback 1 */
-
-  /* USER CODE END Callback 1 */
-}
 
 /**
   * @brief  This function is executed in case of error occurrence.
