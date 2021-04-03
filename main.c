@@ -19,13 +19,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "cmsis_os.h"
-#include <stdio.h>
-#include "FreeRTOS.h"
-#include "queue.h"
-#include "cmsis_os.h"
-#include "task.h"
-#include "semphr.h"
+#include "priorityQueue.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -49,46 +43,6 @@
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
-/* Definitions for defaultTask */
-osThreadId_t defaultTaskHandle;
-const osThreadAttr_t defaultTask_attributes = {
-    .name = "defaultTask",
-    .priority = (osPriority_t)osPriorityNormal,
-    .stack_size = 128 * 4};
-/* Definitions for task1 */
-osThreadId_t task1Handle;
-const osThreadAttr_t task1_attributes = {
-    .name = "task1",
-    .priority = (osPriority_t)osPriorityLow,
-    .stack_size = 128 * 4};
-/* Definitions for task2 */
-osThreadId_t task2Handle;
-const osThreadAttr_t task2_attributes = {
-    .name = "task2",
-    .priority = (osPriority_t)osPriorityLow,
-    .stack_size = 128 * 4};
-/* Definitions for task3 */
-osThreadId_t task3Handle;
-const osThreadAttr_t task3_attributes = {
-    .name = "task3",
-    .priority = (osPriority_t)osPriorityLow,
-    .stack_size = 128 * 4};
-/* Definitions for SQ */
-osMessageQueueId_t SQHandle;
-const osMessageQueueAttr_t SQ_attributes = {
-    .name = "SQ"};
-/* Definitions for RX */
-osMessageQueueId_t RXHandle;
-const osMessageQueueAttr_t RX_attributes = {
-    .name = "RX"};
-/* Definitions for uart_mutex */
-osMutexId_t uart_mutexHandle;
-const osMutexAttr_t uart_mutex_attributes = {
-    .name = "uart_mutex"};
-/* Definitions for IRQ_semaphore */
-osSemaphoreId_t IRQ_semaphoreHandle;
-const osSemaphoreAttr_t IRQ_semaphore_attributes = {
-    .name = "IRQ_semaphore"};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -98,12 +52,6 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_USART2_UART_Init(void);
-void StartDefaultTask(void *argument);
-void StartTask02(void *argument);
-void StartTask03(void *argument);
-void StartTask04(void *argument);
-int8_t calculate(char *);
-
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -147,71 +95,22 @@ int main(void)
 
   /* USER CODE END 2 */
 
-  /* Init scheduler */
-  osKernelInitialize();
-  /* Create the mutex(es) */
-  /* creation of uart_mutex */
-  uart_mutexHandle = osMutexNew(&uart_mutex_attributes);
-
-  /* USER CODE BEGIN RTOS_MUTEX */
-  /* add mutexes, ... */
-  /* USER CODE END RTOS_MUTEX */
-
-  /* Create the semaphores(s) */
-  /* creation of IRQ_semaphore */
-  IRQ_semaphoreHandle = osSemaphoreNew(1, 1, &IRQ_semaphore_attributes);
-
-  /* USER CODE BEGIN RTOS_SEMAPHORES */
-  /* add semaphores, ... */
-  /* USER CODE END RTOS_SEMAPHORES */
-
-  /* USER CODE BEGIN RTOS_TIMERS */
-  /* start timers, add new ones, ... */
-  /* USER CODE END RTOS_TIMERS */
-
-  /* Create the queue(s) */
-  /* creation of SQ */
-  SQHandle = osMessageQueueNew(16, sizeof(uint16_t), &SQ_attributes);
-
-  /* creation of RX */
-  RXHandle = osMessageQueueNew(16, sizeof(uint16_t), &RX_attributes);
-
-  /* USER CODE BEGIN RTOS_QUEUES */
-  /* add queues, ... */
-  /* USER CODE END RTOS_QUEUES */
-
-  /* Create the thread(s) */
-  /* creation of defaultTask */
-  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
-
-  /* creation of task1 */
-  task1Handle = osThreadNew(StartTask02, NULL, &task1_attributes);
-
-  /* creation of task2 */
-  task2Handle = osThreadNew(StartTask03, NULL, &task2_attributes);
-
-  /* creation of task3 */
-  task3Handle = osThreadNew(StartTask04, NULL, &task3_attributes);
-
-  /* USER CODE BEGIN RTOS_THREADS */
-  /* add threads, ... */
-  /* USER CODE END RTOS_THREADS */
-
-  /* USER CODE BEGIN RTOS_EVENTS */
-  /* add events, ... */
-  /* USER CODE END RTOS_EVENTS */
-
-  /* Start scheduler */
-  __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
-  osKernelStart();
-
-  /* We should never get here as control is now taken by the scheduler */
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  char an[2];
   while (1)
   {
     /* USER CODE END WHILE */
-
+    priorityQueue PQ;
+    initialize(&PQ);
+    enqueue(10, 2, &PQ);
+    enqueue(14, 2, &PQ);
+    enqueue(16, 4, &PQ);
+    enqueue(12, 3, &PQ);
+    //uint8_t i = peek(PQ);
+    int i = peek(PQ);
+    sprintf(an, "%i", i);
+    HAL_UART_Transmit(&huart2, (uint8_t *)an, sizeof(an), 10); /* Print to UART */
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -369,163 +268,6 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
-
-/* USER CODE BEGIN Header_StartDefaultTask */
-/**
-  * @brief  Function implementing the defaultTask thread.
-  * @param  argument: Not used
-  * @retval None
-  */
-/* USER CODE END Header_StartDefaultTask */
-void StartDefaultTask(void *argument)
-{
-  /*This task handles calculation*/
-  /* USER CODE BEGIN 5 */
-  /* Infinite loop */
-  uint8_t in;
-  int i = 0;
-  char buffer[5];
-  int8_t answer;
-  char an[2];
-  for (;;)
-  {
-
-    in = 0;
-    /* Receive from QR */
-    if (xQueueReceive(RXHandle, &in, 100) == pdPASS)
-    {
-      taskENTER_CRITICAL();
-      xQueueSendToBack(SQHandle, &in, 10); /* Send to SQ */
-      taskEXIT_CRITICAL();
-      if (in == 0x0D) /*user pressed enter*/
-      {
-        answer = calculate(buffer);                      /* Evaltuate the operation */
-        xQueueSendToBack(SQHandle, (uint8_t *)"\n", 10); /* Send end line */
-        sprintf(an, "%i", answer);                       /* Convert to Char buffer */
-        xQueueSendToBack(SQHandle, &an[0], 10);          /* Send first char */
-        xQueueSendToBack(SQHandle, &an[1], 10);          /* Send second char */
-        xQueueSendToBack(SQHandle, (uint8_t *)"\n", 10); /* Send end line */
-
-        i = 0;
-      }
-      else
-      {
-        buffer[i] = in; /* Append to Buffer */
-        i++;
-      }
-    }
-  }
-  /* USER CODE END 5 */
-}
-
-int8_t calculate(char *buffer)
-{
-  uint8_t op;
-  int dig_a, dig_b;
-  dig_a = buffer[0] - '0'; /* convert first digit to char */
-  op = buffer[1];          /* convert operand to char */
-  dig_b = buffer[2] - '0'; /* convert second digit to char */
-  int8_t answer = 0;
-  if (dig_a < 10 && dig_a >= 0 && dig_b < 10 && dig_b >= 0) /* Check if the operands are positive*/
-  {
-    switch (op) /* switch on the operation */
-    {
-    case '+':
-      answer = dig_a + dig_b;
-      break;
-    case '-':
-      answer = dig_a - dig_b;
-      break;
-    case '*':
-      answer = dig_a * dig_b;
-      break;
-    case '/':
-      answer = dig_a / dig_b;
-      break;
-    default:
-      answer = 100;
-    }
-  }
-  return answer;
-}
-/* USER CODE BEGIN Header_StartTask02 */
-/**
-* @brief Function implementing the task1 thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartTask02 */
-void StartTask02(void *argument)
-{
-  /* USER CODE BEGIN StartTask02 */
-  /* Infinite loop */
-
-  uint8_t result;
-  for (;;)
-  {
-    if (xQueueReceive(SQHandle, &result, 10) == pdPASS) /* Receive from QR */
-    {
-      taskENTER_CRITICAL();
-      HAL_UART_Transmit(&huart1, &result, sizeof(result), 10); /* Print to UART */
-      taskEXIT_CRITICAL();
-    }
-    osDelay(1);
-  }
-}
-/* USER CODE END StartTask02 */
-
-/* USER CODE BEGIN Header_StartTask03 */
-/**
-* @brief Function implementing the task2 thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartTask03 */
-void StartTask03(void *argument)
-{
-  /* USER CODE BEGIN StartTask03 */
-  /* Infinite loop */
-  uint8_t in;
-
-  for (;;)
-  {
-
-    if (xSemaphoreTake(IRQ_semaphoreHandle, 100) == pdTRUE) /* Take the semaphore */
-    {
-      taskENTER_CRITICAL();
-
-      if (HAL_UART_Receive(&huart1, &in, sizeof(in), 10) == HAL_OK) /* Receive from UART */
-      {
-        xQueueSendToBack(RXHandle, &in, NULL); /* Write to QR */
-      }
-      taskEXIT_CRITICAL();
-
-      xSemaphoreGive(IRQ_semaphoreHandle);         /* Give back the semaphore */
-      __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE); /* Enable the interrupt */
-    }
-
-    osDelay(1);
-  }
-  /* USER CODE END StartTask03 */
-}
-
-/* USER CODE BEGIN Header_StartTask04 */
-/**
-* @brief Function implementing the task3 thread.
-* @param argument: Not used
-* @retval None
-*/
-/* USER CODE END Header_StartTask04 */
-void StartTask04(void *argument)
-{
-  /* USER CODE BEGIN StartTask04 */
-  /* Infinite loop */
-  for (;;)
-  {
-    osDelay(1);
-  }
-  /* USER CODE END StartTask04 */
-}
 
 /**
   * @brief  Period elapsed callback in non blocking mode

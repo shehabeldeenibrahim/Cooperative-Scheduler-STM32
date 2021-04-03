@@ -21,12 +21,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32l4xx_it.h"
-#include "cmsis_os.h"
-#include "FreeRTOS.h"
-#include "queue.h"
-#include "task.h"
-#include "semphr.h"
-uint8_t UART1_rxBuffer[12] = {0};
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 /* USER CODE END Includes */
@@ -149,6 +143,19 @@ void UsageFault_Handler(void)
 }
 
 /**
+  * @brief This function handles System service call via SWI instruction.
+  */
+void SVC_Handler(void)
+{
+  /* USER CODE BEGIN SVCall_IRQn 0 */
+
+  /* USER CODE END SVCall_IRQn 0 */
+  /* USER CODE BEGIN SVCall_IRQn 1 */
+
+  /* USER CODE END SVCall_IRQn 1 */
+}
+
+/**
   * @brief This function handles Debug monitor.
   */
 void DebugMon_Handler(void)
@@ -159,6 +166,33 @@ void DebugMon_Handler(void)
   /* USER CODE BEGIN DebugMonitor_IRQn 1 */
 
   /* USER CODE END DebugMonitor_IRQn 1 */
+}
+
+/**
+  * @brief This function handles Pendable request for system service.
+  */
+void PendSV_Handler(void)
+{
+  /* USER CODE BEGIN PendSV_IRQn 0 */
+
+  /* USER CODE END PendSV_IRQn 0 */
+  /* USER CODE BEGIN PendSV_IRQn 1 */
+
+  /* USER CODE END PendSV_IRQn 1 */
+}
+
+/**
+  * @brief This function handles System tick timer.
+  */
+void SysTick_Handler(void)
+{
+  /* USER CODE BEGIN SysTick_IRQn 0 */
+
+  /* USER CODE END SysTick_IRQn 0 */
+
+  /* USER CODE BEGIN SysTick_IRQn 1 */
+
+  /* USER CODE END SysTick_IRQn 1 */
 }
 
 /******************************************************************************/
@@ -185,38 +219,14 @@ void TIM1_UP_TIM16_IRQHandler(void)
 /**
   * @brief This function handles USART1 global interrupt.
   */
-extern QueueHandle_t RXHandle;
-extern SemaphoreHandle_t IRQ_semaphoreHandle;
 void USART1_IRQHandler(void)
 {
-	/*uint8_t in;
-	UBaseType_t x;
-	x = taskENTER_CRITICAL_FROM_ISR();
-	
-	HAL_UART_Receive(&huart1, &in, sizeof(in),10);
-	
-	taskEXIT_CRITICAL_FROM_ISR(x);
-	//HAL_UART_Transmit(&huart1, &in, sizeof(in), HAL_MAX_DELAY);
-	
-	xQueueSendToBackFromISR(RXHandle, &in, NULL);*/
-//	__HAL_UART_DISABLE_IT(&huart1,UART_IT_RXNE);
-			//__HAL_UART_DISABLE_IT(&huart1,UART_IT_RXNE);
-	/*if(xSemaphoreTakeFromISR(IRQ_semaphoreHandle, NULL)) {
-		xSemaphoreGiveFromISR(IRQ_semaphoreHandle,NULL);
-		HAL_UART_IRQHandler(&huart1);
-		__HAL_UART_DISABLE_IT(&huart1,UART_IT_RXNE);
-	}*/
-		if(xSemaphoreTakeFromISR(IRQ_semaphoreHandle, NULL) == pdTRUE) {
-			__HAL_UART_DISABLE_IT(&huart1,UART_IT_RXNE);
-			xSemaphoreGiveFromISR(IRQ_semaphoreHandle, NULL);
-		}
-		//__HAL_UART_ENABLE_IT(&huart1,UART_IT_RXNE);
-			
-  HAL_UART_IRQHandler(&huart1);
-	
-		
+  /* USER CODE BEGIN USART1_IRQn 0 */
 
-	
+  /* USER CODE END USART1_IRQn 0 */
+  HAL_UART_IRQHandler(&huart1);
+  /* USER CODE BEGIN USART1_IRQn 1 */
+
   /* USER CODE END USART1_IRQn 1 */
 }
 
