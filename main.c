@@ -21,6 +21,11 @@
 #include "main.h"
 #include "priorityQueue.h";
 #include "delayQueue.h";
+const int PRIORITY_A = 2;
+const int PRIORITY_B = 3;
+const int PRIORITY_C = 4;
+const int PRIORITY_D = 3;
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -73,17 +78,23 @@ void printUART(char *c)
 {
   HAL_UART_Transmit(&huart2, (uint8_t *)c, sizeof(c), 10); /* Print to UART */
 }
+void ReRunMe(task task, int delay, int priority){
+	QueDelay(task, delay, priority, &DQ);
+}
 void taskA()
 {
   printUART("A");
+	ReRunMe(taskA, 5, PRIORITY_A);
 }
 void taskB()
 {
   printUART("B");
+	
 }
 void taskC()
 {
   printUART("C");
+	ReRunMe(taskC, 5, PRIORITY_C);
 }
 void taskD()
 {
@@ -150,14 +161,14 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
     Init();
-    /*QueTask(taskA, 2, &PQ);
-    QueTask(taskB, 2, &PQ);
-    QueTask(taskC, 4, &PQ);
-    QueTask(taskD, 3, &PQ);*/
-    QueDelay(taskA, 2, 2, &DQ);
-    QueDelay(taskB, 2, 3, &DQ);
-    QueDelay(taskC, 4, 4, &DQ);
-    QueDelay(taskD, 3, 3, &DQ);
+    QueTask(taskA, PRIORITY_A, &PQ);
+    QueTask(taskB, PRIORITY_B, &PQ);
+    QueTask(taskC, PRIORITY_C, &PQ);
+    QueTask(taskD, PRIORITY_D, &PQ);
+//    QueDelay(taskA, 2, 2, &DQ);
+//    QueDelay(taskB, 2, 3, &DQ);
+//    QueDelay(taskC, 4, 4, &DQ);
+//    QueDelay(taskD, 3, 3, &DQ);
 
     while (1)
     {
