@@ -8,6 +8,7 @@ typedef void (*task)(void);
 struct itemDQ
 {
 	task task;
+	int priority;
 	int delay;
 };
 void setValueDQ(task task, itemDQ *i)
@@ -26,7 +27,10 @@ int getDelay(itemDQ i)
 {
 	return i.delay;
 }
-
+void setPriorityDQ(int priority, itemDQ *i)
+{
+	i->priority = priority;
+}
 struct delayQueue
 {
 
@@ -50,7 +54,7 @@ void initializeDQ(delayQueue *PQ)
 }
 // Function to insert a new element
 // into delay queue
-void QueDelay(task value, int delay, delayQueue *PQ)
+void QueDelay(task value, int delay, int priority, delayQueue *PQ)
 {
 
 	// Increase the size
@@ -62,6 +66,7 @@ void QueDelay(task value, int delay, delayQueue *PQ)
 	// Insert the element
 	setValueDQ(value, &(PQ->pr[PQ->size]));
 	setDelay(delay, &(PQ->pr[PQ->size]));
+	setPriorityDQ(priority, &(PQ->pr[PQ->size]));
 }
 
 // Function to check the top element
@@ -105,21 +110,25 @@ void dequeueDelay(delayQueue *PQ, int ind)
 
 void decrement(delayQueue *DQ, priorityQueue *PQ)
 {
-	int delay;
-	for (int i = 0; i <= getSizeDQ(*DQ); i++)
+	volatile unsigned int delay;
+	for (volatile int i = 0; i <= getSizeDQ(*DQ); i++)
 	{
 		// loop on array
 		// decrement delay
 		delay = getDelay(DQ->pr[i]);
-		delay--;
+		delay-=1;
 		// check if delay == 0 -> dequeue and enqueue in ready
 		if (delay <= 0)
 		{
-			QueTask(DQ->pr[i].task, 6, PQ);
+			QueTask(DQ->pr[i].task, DQ->pr[i].priority, PQ);
 			//DQ->pr[i].task();
 			dequeueDelay(DQ, i);
+			i = -1;
+			
 		}
 		else
+		{
 			setDelay(delay, &DQ->pr[i]);
+		}
 	}
 }

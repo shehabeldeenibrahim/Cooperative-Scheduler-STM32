@@ -154,10 +154,10 @@ int main(void)
     QueTask(taskB, 2, &PQ);
     QueTask(taskC, 4, &PQ);
     QueTask(taskD, 3, &PQ);*/
-    QueDelay(taskA, 2, &DQ);
-    QueDelay(taskB, 2, &DQ);
-    QueDelay(taskC, 4, &DQ);
-    QueDelay(taskD, 3, &DQ);
+    QueDelay(taskA, 2, 2, &DQ);
+    QueDelay(taskB, 2, 3, &DQ);
+    QueDelay(taskC, 4, 4, &DQ);
+    QueDelay(taskD, 3, 3, &DQ);
 
     while (1)
     {
