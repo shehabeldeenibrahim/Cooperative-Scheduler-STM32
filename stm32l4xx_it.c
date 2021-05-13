@@ -9,10 +9,10 @@
   * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
   * All rights reserved.</center></h2>
   *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                             www.st.com/SLA0044
+  * This software component is licensed by ST under BSD 3-Clause license,
+  * the "License"; You may not use this file except in compliance with the
+  * License. You may obtain a copy of the License at:
+  *                        opensource.org/licenses/BSD-3-Clause
   *
   ******************************************************************************
   */
@@ -56,7 +56,8 @@
 /* USER CODE END 0 */
 
 /* External variables --------------------------------------------------------*/
-extern UART_HandleTypeDef huart1;
+extern TIM_HandleTypeDef htim1;
+extern TIM_HandleTypeDef htim2;
 extern UART_HandleTypeDef huart2;
 /* USER CODE BEGIN EV */
 
@@ -182,7 +183,6 @@ void PendSV_Handler(void)
 /**
   * @brief This function handles System tick timer.
   */
-
 extern int tick;
 int counter = 0;
 extern void decrementInISR();
@@ -203,7 +203,6 @@ void SysTick_Handler(void)
 
   /* USER CODE END SysTick_IRQn 1 */
 }
-
 /******************************************************************************/
 /* STM32L4xx Peripheral Interrupt Handlers                                    */
 /* Add here the Interrupt Handlers for the used peripherals.                  */
@@ -212,17 +211,100 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /**
-  * @brief This function handles USART1 global interrupt.
+  * @brief This function handles TIM1 capture compare interrupt.
   */
-void USART1_IRQHandler(void)
+void TIM1_CC_IRQHandler(void)
 {
-  /* USER CODE BEGIN USART1_IRQn 0 */
+  /* USER CODE BEGIN TIM1_CC_IRQn 0 */
 
-  /* USER CODE END USART1_IRQn 0 */
-  HAL_UART_IRQHandler(&huart1);
-  /* USER CODE BEGIN USART1_IRQn 1 */
+  /* USER CODE END TIM1_CC_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim1);
+  /* USER CODE BEGIN TIM1_CC_IRQn 1 */
 
-  /* USER CODE END USART1_IRQn 1 */
+  /* USER CODE END TIM1_CC_IRQn 1 */
+}
+
+/**
+  * @brief This function handles TIM2 global interrupt.
+  */
+uint8_t hexToAscii(uint8_t n) //4-bit hex value converted to an ascii character
+{
+  if (n >= 0 && n <= 9)
+    n = n + '0';
+  else
+    n = n - 10 + 'A';
+  return n;
+}
+
+
+int freq[10] = {100,500,700, 1000};
+uint32_t capturedValueRise, capturedValueFall;
+float distance = 0;
+char out[100];
+uint8_t riseFall = 0;
+extern float k;
+void TIM2_IRQHandler(void)
+{
+
+  /* USER CODE BEGIN TIM2_IRQn 0 */
+	if (riseFall==0){
+		// Capture the timer current value
+		capturedValueRise = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_1);
+		// Set the polarity to wait for the next falling edge
+		__HAL_TIM_SET_CAPTUREPOLARITY(&htim2, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_FALLING);
+		// wait for fall
+		riseFall = 1;
+	} else if (riseFall==1){
+	// if you?re waiting for the falling edge
+	// Capture the timer current value
+	capturedValueFall = HAL_TIM_ReadCapturedValue(&htim2, TIM_CHANNEL_1);
+	// Set the polarity to wait for the next rising edge
+	__HAL_TIM_SET_CAPTUREPOLARITY(&htim2, TIM_CHANNEL_1, TIM_INPUTCHANNELPOLARITY_RISING);
+	// measure the distance between the two edges
+		
+	distance = ((capturedValueFall-capturedValueRise) * 0.034) / 2;
+		
+	//distance = (capturedValueFall-capturedValueRise);
+	riseFall = 0;
+	}
+	
+
+	sprintf(out, "%f\r\n", distance);
+	HAL_UART_Transmit(&huart2,(uint8_t *)out, sizeof(out), 10);
+	HAL_TIM_PWM_Start_IT(&htim1, TIM_CHANNEL_1);
+	if(distance >= 15){
+			HAL_TIM_PWM_Stop_IT(&htim1, TIM_CHANNEL_1);
+	}
+	else if(distance < 20 && distance >= 15 ){	
+		__HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[0]));
+		k = 150;
+	} 
+	else if(distance < 15 && distance >= 10){
+		__HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[1]));
+		k = 100;
+	}
+	else if(distance < 10 && distance >= 4)
+	{
+		__HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[2]));
+		k = 0.00000005;
+	}
+	else if(distance < 4)
+	{
+		__HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[3]));
+		k = 0;
+	}
+	
+	
+	
+	
+
+	
+
+  /* USER CODE END TIM2_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim2);
+  /* USER CODE BEGIN TIM2_IRQn 1 */
+
+  /* USER CODE END TIM2_IRQn 1 */
 }
 
 /**
