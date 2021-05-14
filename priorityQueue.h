@@ -1,10 +1,13 @@
 #pragma anon_unions
 #include "main.h"
+#ifndef DEFINITIONS_H 
+#define DEFINITIONS_H 
 typedef struct priorityQueue priorityQueue;
 typedef struct item item;
 typedef void (*task)(void);
 // Structure for the elements in the
 // priority queue
+
 struct item
 {
 	void (*task)(void);
@@ -52,7 +55,6 @@ void initialize(priorityQueue *PQ)
 // into priority queue
 void QueTask(task value, int priority, priorityQueue *PQ)
 {
-	extern UART_HandleTypeDef huart2;
 	// Increase the size
 	//PQ.size++;
 	setSize(getSize(*PQ) + 1, PQ);
@@ -121,3 +123,4 @@ void Dispatch(priorityQueue *PQ)
 		dequeue(PQ);
 	}
 }
+#endif

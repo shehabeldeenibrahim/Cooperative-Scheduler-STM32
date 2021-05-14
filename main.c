@@ -19,12 +19,16 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "priorityQueue.h";
-#include "delayQueue.h";
+#include "priorityQueue.h"
+#include "delayQueue.h"
 const int PRIORITY_A = 2;
 const int PRIORITY_B = 3;
 const int PRIORITY_C = 4;
 const int PRIORITY_D = 3;
+priorityQueue PQ;
+delayQueue DQ;
+int tick = 0;
+float k;
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -80,9 +84,6 @@ int calculatePrescale(int freq)
   int sysclk = 4000000;
   return (sysclk / (freq * (arr + 1))) - 1;
 }
-priorityQueue PQ;
-delayQueue DQ;
-int tick = 0;
 void printUART(char *c)
 {
   HAL_UART_Transmit(&huart2, (uint8_t *)c, sizeof(c), 10); /* Print to UART */
@@ -132,82 +133,67 @@ void decrementInISR()
 {
   decrement(&DQ, &PQ);
 }
-float k;
+void readParkingSensor(void)
+{
+  // Pull TRIG high
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+
+  // Create 10?S delay by setting the TIM Counter Register value to 0
+  // Wait for 10
+  __HAL_TIM_SET_COUNTER(&htim2, 0);
+  while (__HAL_TIM_GET_COUNTER(&htim2) < 10)
+    ;
+
+  // Pull TRIG low
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+
+  // Start TIM Input Capture measurement in interrupt mode
+  HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
+  __HAL_TIM_SET_COUNTER(&htim2, 0);
+
+  // Wait for a little time
+  while (__HAL_TIM_GET_COUNTER(&htim2) < 50)
+  {
+  }
+
+  if (k != 0)
+  {
+    HAL_Delay(k);
+    HAL_TIM_PWM_Stop_IT(&htim1, TIM_CHANNEL_1);
+  }
+
+  // Reading Delay
+  HAL_Delay(100);
+  // HAL_UART_Transmit(&huart2, (uint8_t *)"Reading Sensor \r\n", sizeof("Reading Sensor \r\n"), 10);
+}
 void sensorApp(void)
-{ /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
-
+{
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
-
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
-  /* Configure the system clock */
   SystemClock_Config();
-
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM1_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
-  /* USER CODE BEGIN 2 */
 
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
   // Start the TIM Base generation
   HAL_TIM_Base_Start(&htim2);
   // Pull Trig output low for a little time
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-  //HAL_Delay(10);
-  /* USER CODE BEGIN WHILE */
-  // start the PWM signal generation on the intended timer channel
-  //HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-  // set the Capture/Compare Register (CCR) for adjusting the pulse width (duty cycle)
-  //__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 50);
-  //vary frequency to produce 10 sounds
+
+  // Set the Capture/Compare Register (CCR) for adjusting the pulse width (duty cycle) for sound
   __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 50);
 
+  // Initialize Priority Queue
+  Init();
+  QueTask(readParkingSensor, 7, &PQ);
   while (1)
   {
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-    // pull TRIG high
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-    //create 10?S delay by setting the TIM Counter Register value to 0
-    __HAL_TIM_SET_COUNTER(&htim2, 0);
-    while (__HAL_TIM_GET_COUNTER(&htim2) < 10)
-      ;
-    // pull TRIG low
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-    // start TIM Input Capture measurement in interrupt mode
-    HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
-    __HAL_TIM_SET_COUNTER(&htim2, 0);
-    while (__HAL_TIM_GET_COUNTER(&htim2) < 50)
-    {
-    }
-    // wait for a little time
-    if (k != 0)
-    {
-      HAL_Delay(k);
-      HAL_TIM_PWM_Stop_IT(&htim1, TIM_CHANNEL_1);
-    }
-    //HAL_Delay(200);
-    //while (__HAL_TIM_GET_COUNTER(&htim2)<10000){}
-    //__HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(0));
-    HAL_Delay(100);
+    Dispatch(&PQ);
   }
-  /* USER CODE END 3 */
 }
 void oldMain(void)
 {
@@ -260,7 +246,7 @@ void oldMain(void)
 
 int main(void)
 {
-  oldMain();
+  sensorApp();
 }
 
 /**
