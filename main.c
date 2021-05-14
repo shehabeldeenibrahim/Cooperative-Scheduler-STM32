@@ -30,6 +30,7 @@ delayQueue DQ;
 int tick = 0;
 float k;
 float distance = 0;
+int freq[10] = {100, 500, 700, 1000};
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -79,6 +80,7 @@ static void MX_TIM2_Init(void);
   * @brief  The application entry point.
   * @retval int
   */
+/* Helper Functions */
 int calculatePrescale(int freq)
 {
   int arr = 99;
@@ -89,10 +91,25 @@ void printUART(char *c)
 {
   HAL_UART_Transmit(&huart2, (uint8_t *)c, sizeof(c), 10); /* Print to UART */
 }
+/* End Helper Functions*/
+
+/* Queue External Functions */
 void ReRunMe(task task, int delay, int priority)
 {
   QueDelay(task, delay, priority, &DQ);
 }
+void Init()
+{
+  initialize(&PQ);
+  initializeDQ(&DQ);
+}
+void decrementInISR()
+{
+  decrement(&DQ, &PQ);
+}
+/* End Queue External Functions*/
+
+/* Queue Testing Tasks */
 void taskA()
 {
   printUART("A");
@@ -111,30 +128,10 @@ void taskD()
 {
   printUART("D");
 }
-void Init()
-{
-  initialize(&PQ);
-  initializeDQ(&DQ);
-}
+/* End Queue Testing Tasks */
 
-char an[20];
-void Delay(int ms)
-{
-  tick = 0;
-  while (tick < ms)
-    sprintf(an, "%i", tick); /* Convert to Char buffer */
-
-  //	while(tick < ms){
-  //		sprintf(an, "%i", tick);                       /* Convert to Char buffer */
-  //		HAL_UART_Transmit(&huart2, (uint8_t *)an, sizeof(an), 10); /* Print to UART */
-  //		int a = 0;
-  //	}
-}
-void decrementInISR()
-{
-  decrement(&DQ, &PQ);
-}
-void readParkingSensor(void)
+/* Parking Sensor Tasks */
+void readParkingSensor(void) // Task A
 {
   // Pull TRIG high
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
@@ -168,9 +165,7 @@ void readParkingSensor(void)
   ReRunMe(readParkingSensor, 1, 8);
   // HAL_UART_Transmit(&huart2, (uint8_t *)"Reading Sensor \r\n", sizeof("Reading Sensor \r\n"), 10);
 }
-int freq[10] = {100, 500, 700, 1000};
-
-void startSound(void)
+void startSound(void) // Task B
 {
   HAL_TIM_PWM_Start_IT(&htim1, TIM_CHANNEL_1);
   if (distance >= 20)
@@ -206,7 +201,9 @@ void startSound(void)
 
   // HAL_UART_Transmit(&huart2, (uint8_t *)"Started Sound \r\n", sizeof("Started Sound \r\n"), 10);
 }
+/* End Parking Sensor Tasks */
 
+/* Applications Main*/
 void parkingSensorApp(void)
 {
   /* MCU Configuration--------------------------------------------------------*/
@@ -285,6 +282,7 @@ void testTasks(void)
     }
   }
 }
+/* End Applications Main*/
 
 int main(void)
 {
