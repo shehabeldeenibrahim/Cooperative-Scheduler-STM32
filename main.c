@@ -29,6 +29,7 @@ priorityQueue PQ;
 delayQueue DQ;
 int tick = 0;
 float k;
+float distance = 0;
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -163,10 +164,49 @@ void readParkingSensor(void)
   }
 
   // Reading Delay
-  HAL_Delay(100);
-	ReRunMe(readParkingSensor, 1, 8);
+  //HAL_Delay(100);
+  ReRunMe(readParkingSensor, 1, 8);
   // HAL_UART_Transmit(&huart2, (uint8_t *)"Reading Sensor \r\n", sizeof("Reading Sensor \r\n"), 10);
 }
+int freq[10] = {100, 500, 700, 1000};
+
+void startSound(void)
+{
+  HAL_TIM_PWM_Start_IT(&htim1, TIM_CHANNEL_1);
+  if (distance >= 20)
+  {
+    HAL_TIM_PWM_Stop_IT(&htim1, TIM_CHANNEL_1);
+  }
+  else if (distance < 20 && distance >= 15)
+  {
+    __HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[0]));
+    k = 100;
+  }
+  else if (distance < 15 && distance >= 10)
+  {
+    __HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[1]));
+    k = 70;
+  }
+  else if (distance < 10 && distance >= 7)
+  {
+    __HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[2]));
+    k = 40;
+  }
+  else if (distance < 7 && distance >= 4)
+  {
+    __HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[2]));
+    k = 1;
+  }
+  else if (distance < 4)
+  {
+    __HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[3]));
+    k = 0;
+  }
+  ReRunMe(startSound, 2, 9);
+
+  // HAL_UART_Transmit(&huart2, (uint8_t *)"Started Sound \r\n", sizeof("Started Sound \r\n"), 10);
+}
+
 void sensorApp(void)
 {
   /* MCU Configuration--------------------------------------------------------*/
@@ -191,6 +231,7 @@ void sensorApp(void)
   // Initialize Priority Queue
   Init();
   QueTask(readParkingSensor, 8, &PQ);
+  QueTask(startSound, 9, &PQ);
   while (1)
   {
     Dispatch(&PQ);

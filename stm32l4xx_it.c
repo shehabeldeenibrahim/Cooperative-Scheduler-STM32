@@ -236,47 +236,12 @@ uint8_t hexToAscii(uint8_t n) //4-bit hex value converted to an ascii character
   return n;
 }
 
-int freq[10] = {100, 500, 700, 1000};
 uint32_t capturedValueRise, capturedValueFall;
-float distance = 0;
+extern float distance;
 char out[100];
 uint8_t riseFall = 0;
 extern float k;
 extern struct priorityQueue PQ;
-void startSound(void)
-{
-  HAL_TIM_PWM_Start_IT(&htim1, TIM_CHANNEL_1);
-  if (distance >= 20)
-  {
-    HAL_TIM_PWM_Stop_IT(&htim1, TIM_CHANNEL_1);
-  }
-  else if (distance < 20 && distance >= 15)
-  {
-    __HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[0]));
-    k = 100;
-  }
-  else if (distance < 15 && distance >= 10)
-  {
-    __HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[1]));
-    k = 70;
-  }
-  else if (distance < 10 && distance >= 7)
-  {
-    __HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[2]));
-    k = 40;
-  }
-	else if (distance < 7 && distance >= 4)
-  {
-    __HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[2]));
-    k = 1;
-  }
-  else if (distance < 4)
-  {
-    __HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[3]));
-    k = 0;
-  }
-  // HAL_UART_Transmit(&huart2, (uint8_t *)"Started Sound \r\n", sizeof("Started Sound \r\n"), 10);
-}
 
 void TIM2_IRQHandler(void)
 {
@@ -308,7 +273,7 @@ void TIM2_IRQHandler(void)
   HAL_UART_Transmit(&huart2, (uint8_t *)out, sizeof(out), 10);
 
   // Start Sound
-  QueTask(startSound, 8, &PQ);
+  // QueTask(startSound, 8, &PQ);
   /* USER CODE END TIM2_IRQn 0 */
   HAL_TIM_IRQHandler(&htim2);
   /* USER CODE BEGIN TIM2_IRQn 1 */
