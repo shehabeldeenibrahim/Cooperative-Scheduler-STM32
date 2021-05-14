@@ -1,7 +1,7 @@
 #pragma anon_unions
 #include "main.h"
-#ifndef DEFINITIONS_H 
-#define DEFINITIONS_H 
+#ifndef DEFINITIONS_H
+#define DEFINITIONS_H
 typedef struct priorityQueue priorityQueue;
 typedef struct item item;
 typedef void (*task)(void);
@@ -95,11 +95,11 @@ int peek(priorityQueue PQ)
 
 // Function to remove the element with
 // the highest priority
-void dequeue(priorityQueue *PQ)
+void dequeue(priorityQueue *PQ, int ind)
 {
 	// Find the position of the element
 	// with highest priority
-	int ind = peek(*PQ);
+	//int ind = peek(*PQ);
 
 	// Shift the element one index before
 	// from the postion of the element
@@ -120,7 +120,7 @@ void Dispatch(priorityQueue *PQ)
 	{
 		int i = peek(*PQ);
 		PQ->pr[i].task();
-		dequeue(PQ);
+		dequeue(PQ, i);
 	}
 }
 #endif

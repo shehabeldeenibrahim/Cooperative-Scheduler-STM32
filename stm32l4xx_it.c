@@ -246,24 +246,29 @@ extern struct priorityQueue PQ;
 void startSound(void)
 {
   HAL_TIM_PWM_Start_IT(&htim1, TIM_CHANNEL_1);
-  if (distance >= 15)
+  if (distance >= 20)
   {
     HAL_TIM_PWM_Stop_IT(&htim1, TIM_CHANNEL_1);
   }
   else if (distance < 20 && distance >= 15)
   {
     __HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[0]));
-    k = 150;
+    k = 100;
   }
   else if (distance < 15 && distance >= 10)
   {
     __HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[1]));
-    k = 100;
+    k = 70;
   }
-  else if (distance < 10 && distance >= 4)
+  else if (distance < 10 && distance >= 7)
   {
     __HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[2]));
-    k = 10;
+    k = 40;
+  }
+	else if (distance < 7 && distance >= 4)
+  {
+    __HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[2]));
+    k = 1;
   }
   else if (distance < 4)
   {

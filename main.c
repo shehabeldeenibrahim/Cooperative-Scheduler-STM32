@@ -164,6 +164,7 @@ void readParkingSensor(void)
 
   // Reading Delay
   HAL_Delay(100);
+	ReRunMe(readParkingSensor, 1, 8);
   // HAL_UART_Transmit(&huart2, (uint8_t *)"Reading Sensor \r\n", sizeof("Reading Sensor \r\n"), 10);
 }
 void sensorApp(void)
@@ -189,7 +190,7 @@ void sensorApp(void)
 
   // Initialize Priority Queue
   Init();
-  QueTask(readParkingSensor, 7, &PQ);
+  QueTask(readParkingSensor, 8, &PQ);
   while (1)
   {
     Dispatch(&PQ);
