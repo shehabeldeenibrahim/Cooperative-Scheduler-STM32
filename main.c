@@ -207,7 +207,7 @@ void startSound(void)
   // HAL_UART_Transmit(&huart2, (uint8_t *)"Started Sound \r\n", sizeof("Started Sound \r\n"), 10);
 }
 
-void sensorApp(void)
+void parkingSensorApp(void)
 {
   /* MCU Configuration--------------------------------------------------------*/
 
@@ -237,7 +237,7 @@ void sensorApp(void)
     Dispatch(&PQ);
   }
 }
-void oldMain(void)
+void testTasks(void)
 {
   /* USER CODE BEGIN 1 */
 
@@ -288,7 +288,7 @@ void oldMain(void)
 
 int main(void)
 {
-  sensorApp();
+  testTasks();
 }
 
 /**
