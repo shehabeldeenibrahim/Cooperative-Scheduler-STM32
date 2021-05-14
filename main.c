@@ -21,35 +21,22 @@
 #include "main.h"
 #include "priorityQueue.h"
 #include "delayQueue.h"
+
+/* Constants */
 const int PRIORITY_A = 2;
 const int PRIORITY_B = 3;
 const int PRIORITY_C = 4;
 const int PRIORITY_D = 3;
+/* End Constants */
+
+/* Global Declarations */
 priorityQueue PQ;
 delayQueue DQ;
-int tick = 0;
 float k;
 float distance = 0;
 int freq[10] = {100, 500, 700, 1000};
-
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
+int tick = 0;
+/*  End Global Declarations  */
 
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim1;
@@ -57,24 +44,12 @@ TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart2;
 
-/* USER CODE BEGIN PV */
-
-/* USER CODE END PV */
-
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
-/* USER CODE BEGIN PFP */
-
-/* USER CODE END PFP */
-
-/* Private user code ---------------------------------------------------------*/
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
 
 /**
   * @brief  The application entry point.
@@ -160,13 +135,14 @@ void readParkingSensor(void) // Task A
     HAL_TIM_PWM_Stop_IT(&htim1, TIM_CHANNEL_1);
   }
 
-  // Reading Delay
-  //HAL_Delay(100);
+  // Rerun the task
   ReRunMe(readParkingSensor, 1, 8);
-  // HAL_UART_Transmit(&huart2, (uint8_t *)"Reading Sensor \r\n", sizeof("Reading Sensor \r\n"), 10);
 }
 void startSound(void) // Task B
 {
+  /* Changes the frequency and tone of the sensor
+  based on the distance retrieved by the Motion sensor*/
+
   HAL_TIM_PWM_Start_IT(&htim1, TIM_CHANNEL_1);
   if (distance >= 20)
   {
@@ -197,9 +173,9 @@ void startSound(void) // Task B
     __HAL_TIM_SET_PRESCALER(&htim1, calculatePrescale(freq[3]));
     k = 0;
   }
-  ReRunMe(startSound, 2, 9);
 
-  // HAL_UART_Transmit(&huart2, (uint8_t *)"Started Sound \r\n", sizeof("Started Sound \r\n"), 10);
+  /* Rerun the task */
+  ReRunMe(startSound, 2, 9);
 }
 /* End Parking Sensor Tasks */
 
@@ -236,31 +212,17 @@ void parkingSensorApp(void)
 }
 void testTasks(void)
 {
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
-
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
   /* Configure the system clock */
   SystemClock_Config();
-
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
-  // MX_TIM2_Init();
-  // MX_TIM1_Init();
   while (1)
   {
     /* USER CODE END WHILE */
@@ -286,7 +248,7 @@ void testTasks(void)
 
 int main(void)
 {
-  testTasks();
+  parkingSensorApp();
 }
 
 /**
