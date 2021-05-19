@@ -19,6 +19,16 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "priorityQueue.h"
+#include "delayQueue.h"
+
+/* Constants */
+const int TEMP_PRIORITY = 8;
+const int THRESH_PRIORITY = 6;
+const int LED_PRIORITY = 9;
+
+int tick = 0;
+/* End Constants */
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -66,10 +76,70 @@ static void MX_USART2_UART_Init(void);
 
 /* USER CODE END 0 */
 
+/* Global Declarations */
+priorityQueue PQ;
+delayQueue DQ;
+char txdata1 = 0x01, txdata2 = 0x80;
+char rxdata[2], out[] = {0, 0, 0, '\r', '\n'}, outHex[] = {0, 0, 0, '\r', '\n'};
+
+/*  End Global Declarations  */
+
+/* Helper Functions */
+int calculatePrescale(int freq)
+{
+  int arr = 99;
+  int sysclk = 4000000;
+  return (sysclk / (freq * (arr + 1))) - 1;
+}
+void printUART(char *c)
+{
+  HAL_UART_Transmit(&huart2, (uint8_t *)c, sizeof(c), 10); /* Print to UART */
+}
+
+/* End Helper Functions*/
+
+/* Queue External Functions */
+void ReRunMe(task task, int delay, int priority)
+{
+  QueDelay(task, delay, priority, &DQ);
+}
+void Init()
+{
+  initialize(&PQ);
+  initializeDQ(&DQ);
+}
+void decrementInISR()
+{
+  decrement(&DQ, &PQ);
+}
+/* End Queue External Functions*/
+
+/* Queue Testing Tasks */
+void taskA()
+{
+  printUART("A");
+  ReRunMe(taskA, 5, 8);
+}
+void taskB()
+{
+  printUART("B");
+}
+void taskC()
+{
+  printUART("C");
+  ReRunMe(taskC, 5, 7);
+}
+void taskD()
+{
+  printUART("D");
+}
+/* End Queue Testing Tasks */
+
 /**
   * @brief  The application entry point.
   * @retval int
   */
+
 uint8_t hexToAscii(uint8_t n) // convert n to ascii
 {
   if (n >= 0 && n <= 9)
@@ -87,6 +157,106 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   HAL_UART_Receive_IT(&huart1, &in, sizeof(in));
 }
 
+void readThreshold()
+{
+  HAL_UART_Receive_IT(&huart1, &in, sizeof(in));
+}
+void toggleLED()
+{
+
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
+}
+int getNum(char ch)
+{
+  int num = 0;
+  if (ch >= '0' && ch <= '9')
+  {
+    num = ch - 0x30;
+  }
+  else
+  {
+    switch (ch)
+    {
+    case 'A':
+    case 'a':
+      num = 10;
+      break;
+    case 'B':
+    case 'b':
+      num = 11;
+      break;
+    case 'C':
+    case 'c':
+      num = 12;
+      break;
+    case 'D':
+    case 'd':
+      num = 13;
+      break;
+    case 'E':
+    case 'e':
+      num = 14;
+      break;
+    case 'F':
+    case 'f':
+      num = 15;
+      break;
+    default:
+      num = 0;
+    }
+  }
+  return num;
+}
+
+//function : hex2int
+//this function will return integer value against
+//hexValue - which is in string format
+
+unsigned int hex2int()
+{
+  unsigned int x = 0;
+  x = (getNum(out[0])) * 256 + (getNum(out[1])) * 16 + (getNum(out[2]));
+  return x;
+}
+unsigned int a;
+int var;
+void readTemperature()
+{
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);     // write to gpio pin12 to set CS/SHDN
+  HAL_Delay(1);                                            // wait for 1
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);   // clear CS/SHDN
+  HAL_SPI_Transmit(&hspi1, &txdata1, sizeof(txdata1), 10); // transmit to spi
+  HAL_SPI_TransmitReceive(&hspi1, &txdata2, &rxdata[0], sizeof(txdata2), 10);
+  HAL_SPI_Receive(&hspi1, &rxdata[1], sizeof(rxdata[1]), 10);
+  for (int i = 0; i < 3; i++)
+  {
+    // do the shifting and store to be transmitted to the uart in ascii
+    if (i == 0)
+    {
+      out[0] = hexToAscii(rxdata[0] & 0x0F);
+      outHex[0] = rxdata[0] & 0x0F;
+    }
+    else if (i == 1)
+    {
+      out[1] = hexToAscii((rxdata[1] >> 4) & 0x0F);
+      outHex[1] = (rxdata[1] >> 4) & 0x0F;
+    }
+    else
+    {
+      out[2] = hexToAscii(rxdata[1] & 0x0F);
+      outHex[2] = rxdata[1] & 0x0F;
+    }
+  }
+  a = hex2int();
+  HAL_UART_Transmit(&huart2, out, sizeof(out), 10);
+  if (a > 2000)
+    QueTask(toggleLED, LED_PRIORITY, &PQ);
+  else
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
+  //HAL_Delay(1000);
+  ReRunMe(readTemperature, 100, TEMP_PRIORITY);
+}
+
 int main(void)
 {
   HAL_Init();
@@ -96,37 +266,14 @@ int main(void)
   MX_SPI3_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
-  /* USER CODE BEGIN 2 */
-  uint8_t txdata1 = 0x01, txdata2 = 0x80;
-  uint8_t rxdata[2], out[] = {0, 0, 0, '\r', '\n'};
 
-  HAL_UART_Receive_IT(&huart1, &in, sizeof(in));
+  Init();
+  //QueTask(readThreshold, THRESH_PRIORITY, &PQ);
+  QueTask(readTemperature, TEMP_PRIORITY, &PQ);
   while (1)
   {
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);     // write to gpio pin12 to set CS/SHDN
-    HAL_Delay(1);                                            // wait for 1
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);   // clear CS/SHDN
-    HAL_SPI_Transmit(&hspi1, &txdata1, sizeof(txdata1), 10); // transmit to spi
-    HAL_SPI_TransmitReceive(&hspi1, &txdata2, &rxdata[0], sizeof(txdata2), 10);
-    HAL_SPI_Receive(&hspi1, &rxdata[1], sizeof(rxdata[1]), 10);
-    for (int i = 0; i < 3; i++)
-    {
-      // do the shifting and store to be transmitted to the uart in ascii
-      if (i == 0)
-        out[0] = hexToAscii(rxdata[0] & 0x0F);
-      else if (i == 1)
-        out[1] = hexToAscii((rxdata[1] >> 4) & 0x0F);
-      else
-        out[2] = hexToAscii(rxdata[1] & 0x0F);
-    }
-    HAL_UART_Transmit(&huart2, out, sizeof(out), 10);
-    HAL_Delay(1000);
+    Dispatch(&PQ);
   }
-
-  /* USER CODE END 2 */
 }
 
 /**
@@ -344,10 +491,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12 | GPIO_PIN_5, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PA12 */
-  GPIO_InitStruct.Pin = GPIO_PIN_12;
+  GPIO_InitStruct.Pin = GPIO_PIN_12 | GPIO_PIN_5;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
