@@ -5,8 +5,8 @@ The objective of this project is to develope a task scheduler that works on a Re
     .
     ├── tests                   # Test cases for the priority and delay queues
     ├── parking                 # Folder containing parking sensor application
-    ├── temperature             # Folder containing temperature sesnor application
-    ├── main.c                  # Scheduler Applications + test cases
+    ├── temperature             # Folder containing temperature sensor application
+    ├── main.c                  # Parking application + test cases
     ├── stm32l4xx_it            # Interrupts file
     ├── priorityQueue.h         # Implementation of the priority queue data-structure
     ├── delayQueue.h            # Implementation of the delay queue data-structure
@@ -78,12 +78,17 @@ In this application, the end goal was to develope a parking sensor using the HC-
 `ParkingSensorApp` is used to initialize the queues and enqueue each task, giving the buzzer a higher priority than the reading, and is called in the `main()` function
 
 ### Temperature Sensor
-In this application, the end goal was to develope a utilize the temperature sensor in the DS3231 to measure the surrounding temperature, and indicate (using an LED) when the temperature exceeds a certain threshold, which is specified by the user using UART2 through Tera-Term
+In this application, the end goal was to develope a utilize the temperature sensor in the DS3231 to measure the surrounding temperature, and indicate (using an LED) when the temperature exceeds a certain threshold, which is specified by the user using UART1 through Tera-Term
 To demonstrate the usage of the `PriorityQueue`, the application was split into the following tasks:
-`ReadTemperature` reads the temperature sensor every 30 seconds (written every 5 seconds for quicker testing) by interfacing with the sensor using SPI, checks if the input value exceeds the user set threshold to enqueue `ToggleLED` and prints to UART2
+
+`ReadTemperature` reads the temperature sensor every 30 seconds (written every 5 seconds for quicker testing) by interfacing with the sensor using SPI, checks if the input value exceeds the user set threshold to enqueue `ToggleLED` and prints to UART2, then calls `ReRunMe(30)` to enqueue itself again after 30 seconds
+
 `ToggleLED` writes to a GPIO pin to switch on the LED
-`ReadThreshold` starts the UART1 interrupt to receive threshold from the user
+
+`ReadThreshold` starts the UART1 interrupt to receive threshold from the user enqueued in the `main`
+
 `SetThreshold` sets the new threshold when the user hits the *enter* key in the terminal after converting the string of digits to int
+
 Also there is the `UART interrupt handler` receives a character and appends to the buffer until the user hits *enter*, it enqueues `setThreshold` to set the temperature threshold
 # Resources
 - [STM32CubeMX](https://www.st.com/en/development-tools/stm32cubemx.html)
