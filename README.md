@@ -77,6 +77,7 @@ In this application, the end goal was to develope a parking sensor using the HC-
 `StartSound` which Changes the frequency and tone of the buzzer based on the distance retrieved by the Motion sensor, then calls `RerunMe` with delay 2 tick
 `ParkingSensorApp` is used to initialize the queues and enqueue each task, giving the buzzer a higher priority than the reading, and is called in the `main()` function
 
+[Demo Video](https://drive.google.com/file/d/1ZjrcKI8dsf-w1QqLSSqlEqu78SOcEZ8T/view?usp=sharing)
 ### Temperature Sensor
 In this application, the end goal was to develope a utilize the temperature sensor in the DS3231 to measure the surrounding temperature, and indicate (using an LED) when the temperature exceeds a certain threshold, which is specified by the user using UART1 through Tera-Term
 To demonstrate the usage of the `PriorityQueue`, the application was split into the following tasks:
@@ -90,6 +91,8 @@ To demonstrate the usage of the `PriorityQueue`, the application was split into 
 `SetThreshold` sets the new threshold when the user hits the *enter* key in the terminal after converting the string of digits to int
 
 Also there is the `UART interrupt handler` receives a character and appends to the buffer until the user hits *enter*, it enqueues `setThreshold` to set the temperature threshold
+
+[Demo Video](https://drive.google.com/file/d/1ZgtsmuUp4Q8IuoqcjywrRm8tmokEkRht/view?usp=sharing)
 # Resources
 - [STM32CubeMX](https://www.st.com/en/development-tools/stm32cubemx.html)
 - [KeilV5](https://www2.keil.com/mdk5)
