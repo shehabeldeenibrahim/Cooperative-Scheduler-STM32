@@ -4,7 +4,9 @@ The objective of this project is to develope a task scheduler that works on a Re
 ### Project directory
     .
     ├── tests                   # Test cases for the priority and delay queues
-    ├── main.c                  # Scheduler Applications + test cases
+    ├── parking                 # Folder containing parking sensor application
+    ├── temperature             # Folder containing temperature sensor application
+    ├── main.c                  # Parking application + test cases
     ├── stm32l4xx_it            # Interrupts file
     ├── priorityQueue.h         # Implementation of the priority queue data-structure
     ├── delayQueue.h            # Implementation of the delay queue data-structure
@@ -70,14 +72,24 @@ void main()
 # Scheduler Applications
 To test the functionality of the scheduler on a real-life application, 2 applications have been developed and tested on the STM32 using CubeMX and Keil v5
 ### Parking Sensor
-In this application, the end goal was to develope a parking sensor using the HC-SR04 ultra-sonic sensor, and an active buzzer. The program reads the input from the sensor, calculates the distance, and changes the frequency and the tone of the passive buzzer based on the distance from the obstacle; the beeps keep increasing in frequency and tone until it hits the obstacle and produces a constant beep, just like a regular car sensor. To demonstrate the usage of the `PriorityQueue`, the application was split into 2 tasks:
+In this application, the end goal was to develope a parking sensor using the HC-SR04 ultra-sonic sensor, and an active buzzer. The program reads the input from the sensor, calculates the distance, and changes the frequency and the tone of the passive buzzer based on the distance from the obstacle; the beeps keep increasing in frequency and tone until it hits the obstacle and produces a constant beep, just like a regular car sensor. To demonstrate the usage of the `PriorityQueue`, the application was split into 3 tasks:
 `ReadParkingSensor` which pulls the TRIG high then low, and starts the capture interrupt on *Channel 1*, then calls `RerunMe` with delay 1 tick
 `StartSound` which Changes the frequency and tone of the buzzer based on the distance retrieved by the Motion sensor, then calls `RerunMe` with delay 2 tick
 `ParkingSensorApp` is used to initialize the queues and enqueue each task, giving the buzzer a higher priority than the reading, and is called in the `main()` function
 
 ### Temperature Sensor
-In this application, the end goal was to develope a utilize the temperature sensor in the DS3231 to measure the surrounding temperature, and indicate (using an LED) when the temperature exceeds a certain threshold, which is specified by the user using UART2 through Tera-Term
+In this application, the end goal was to develope a utilize the temperature sensor in the DS3231 to measure the surrounding temperature, and indicate (using an LED) when the temperature exceeds a certain threshold, which is specified by the user using UART1 through Tera-Term
+To demonstrate the usage of the `PriorityQueue`, the application was split into the following tasks:
 
+`ReadTemperature` reads the temperature sensor every 30 seconds (written every 5 seconds for quicker testing) by interfacing with the sensor using SPI, checks if the input value exceeds the user set threshold to enqueue `ToggleLED` and prints to UART2, then calls `ReRunMe(30)` to enqueue itself again after 30 seconds
+
+`ToggleLED` writes to a GPIO pin to switch on the LED
+
+`ReadThreshold` starts the UART1 interrupt to receive threshold from the user enqueued in the `main`
+
+`SetThreshold` sets the new threshold when the user hits the *enter* key in the terminal after converting the string of digits to int
+
+Also there is the `UART interrupt handler` receives a character and appends to the buffer until the user hits *enter*, it enqueues `setThreshold` to set the temperature threshold
 # Resources
 - [STM32CubeMX](https://www.st.com/en/development-tools/stm32cubemx.html)
 - [KeilV5](https://www2.keil.com/mdk5)
