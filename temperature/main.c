@@ -9,27 +9,23 @@
   * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
   * All rights reserved.</center></h2>
   *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
+  * This software component is licensed by ST under Ultimate Liberty license
+  * SLA0044, the "License"; You may not use this file except in compliance with
+  * the License. You may obtain a copy of the License at:
+  *                             www.st.com/SLA0044
   *
   ******************************************************************************
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "priorityQueue.h"
-#include "delayQueue.h"
-
-/* Constants */
-const int TEMP_PRIORITY = 8;
-const int THRESH_PRIORITY = 6;
-const int LED_PRIORITY = 9;
-
-int tick = 0;
-/* End Constants */
-
+#include "cmsis_os.h"
+#include <stdio.h>
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "cmsis_os.h"
+#include "task.h"
+#include "semphr.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -50,12 +46,49 @@ int tick = 0;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-SPI_HandleTypeDef hspi1;
-SPI_HandleTypeDef hspi3;
-
-UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart1;
+UART_HandleTypeDef huart2;
 
+/* Definitions for defaultTask */
+osThreadId_t defaultTaskHandle;
+const osThreadAttr_t defaultTask_attributes = {
+    .name = "defaultTask",
+    .priority = (osPriority_t)osPriorityNormal,
+    .stack_size = 128 * 4};
+/* Definitions for task1 */
+osThreadId_t task1Handle;
+const osThreadAttr_t task1_attributes = {
+    .name = "task1",
+    .priority = (osPriority_t)osPriorityLow,
+    .stack_size = 128 * 4};
+/* Definitions for task2 */
+osThreadId_t task2Handle;
+const osThreadAttr_t task2_attributes = {
+    .name = "task2",
+    .priority = (osPriority_t)osPriorityLow,
+    .stack_size = 128 * 4};
+/* Definitions for task3 */
+osThreadId_t task3Handle;
+const osThreadAttr_t task3_attributes = {
+    .name = "task3",
+    .priority = (osPriority_t)osPriorityLow,
+    .stack_size = 128 * 4};
+/* Definitions for SQ */
+osMessageQueueId_t SQHandle;
+const osMessageQueueAttr_t SQ_attributes = {
+    .name = "SQ"};
+/* Definitions for RX */
+osMessageQueueId_t RXHandle;
+const osMessageQueueAttr_t RX_attributes = {
+    .name = "RX"};
+/* Definitions for uart_mutex */
+osMutexId_t uart_mutexHandle;
+const osMutexAttr_t uart_mutex_attributes = {
+    .name = "uart_mutex"};
+/* Definitions for IRQ_semaphore */
+osSemaphoreId_t IRQ_semaphoreHandle;
+const osSemaphoreAttr_t IRQ_semaphore_attributes = {
+    .name = "IRQ_semaphore"};
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -63,10 +96,14 @@ UART_HandleTypeDef huart1;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_SPI1_Init(void);
-static void MX_SPI3_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_USART2_UART_Init(void);
+void StartDefaultTask(void *argument);
+void StartTask02(void *argument);
+void StartTask03(void *argument);
+void StartTask04(void *argument);
+int8_t calculate(char *);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -76,204 +113,108 @@ static void MX_USART2_UART_Init(void);
 
 /* USER CODE END 0 */
 
-/* Global Declarations */
-priorityQueue PQ;
-delayQueue DQ;
-char txdata1 = 0x01, txdata2 = 0x80;
-char rxdata[2], out[] = {0, 0, 0, '\r', '\n'}, outHex[] = {0, 0, 0, '\r', '\n'};
-
-/*  End Global Declarations  */
-
-/* Helper Functions */
-int calculatePrescale(int freq)
-{
-  int arr = 99;
-  int sysclk = 4000000;
-  return (sysclk / (freq * (arr + 1))) - 1;
-}
-void printUART(char *c)
-{
-  HAL_UART_Transmit(&huart2, (uint8_t *)c, sizeof(c), 10); /* Print to UART */
-}
-
-/* End Helper Functions*/
-
-/* Queue External Functions */
-void ReRunMe(task task, int delay, int priority)
-{
-  QueDelay(task, delay, priority, &DQ);
-}
-void Init()
-{
-  initialize(&PQ);
-  initializeDQ(&DQ);
-}
-void decrementInISR()
-{
-  decrement(&DQ, &PQ);
-}
-/* End Queue External Functions*/
-
-/* Queue Testing Tasks */
-void taskA()
-{
-  printUART("A");
-  ReRunMe(taskA, 5, 8);
-}
-void taskB()
-{
-  printUART("B");
-}
-void taskC()
-{
-  printUART("C");
-  ReRunMe(taskC, 5, 7);
-}
-void taskD()
-{
-  printUART("D");
-}
-/* End Queue Testing Tasks */
-
 /**
   * @brief  The application entry point.
   * @retval int
   */
-
-uint8_t hexToAscii(uint8_t n) // convert n to ascii
-{
-  if (n >= 0 && n <= 9)
-    n = n + '0';
-  else
-    n = n - 10 + 'A';
-  return n;
-}
-
-uint8_t in;
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-  HAL_UART_Transmit(&huart1, &in, sizeof(in), 100);
-  HAL_UART_Receive_IT(&huart1, &in, sizeof(in));
-}
-
-void readThreshold()
-{
-  HAL_UART_Receive_IT(&huart1, &in, sizeof(in));
-}
-void toggleLED()
-{
-
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET);
-}
-int getNum(char ch)
-{
-  int num = 0;
-  if (ch >= '0' && ch <= '9')
-  {
-    num = ch - 0x30;
-  }
-  else
-  {
-    switch (ch)
-    {
-    case 'A':
-    case 'a':
-      num = 10;
-      break;
-    case 'B':
-    case 'b':
-      num = 11;
-      break;
-    case 'C':
-    case 'c':
-      num = 12;
-      break;
-    case 'D':
-    case 'd':
-      num = 13;
-      break;
-    case 'E':
-    case 'e':
-      num = 14;
-      break;
-    case 'F':
-    case 'f':
-      num = 15;
-      break;
-    default:
-      num = 0;
-    }
-  }
-  return num;
-}
-
-//function : hex2int
-//this function will return integer value against
-//hexValue - which is in string format
-
-unsigned int hex2int()
-{
-  unsigned int x = 0;
-  x = (getNum(out[0])) * 256 + (getNum(out[1])) * 16 + (getNum(out[2]));
-  return x;
-}
-unsigned int a;
-int var;
-void readTemperature()
-{
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_SET);     // write to gpio pin12 to set CS/SHDN
-  HAL_Delay(1);                                            // wait for 1
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12, GPIO_PIN_RESET);   // clear CS/SHDN
-  HAL_SPI_Transmit(&hspi1, &txdata1, sizeof(txdata1), 10); // transmit to spi
-  HAL_SPI_TransmitReceive(&hspi1, &txdata2, &rxdata[0], sizeof(txdata2), 10);
-  HAL_SPI_Receive(&hspi1, &rxdata[1], sizeof(rxdata[1]), 10);
-  for (int i = 0; i < 3; i++)
-  {
-    // do the shifting and store to be transmitted to the uart in ascii
-    if (i == 0)
-    {
-      out[0] = hexToAscii(rxdata[0] & 0x0F);
-      outHex[0] = rxdata[0] & 0x0F;
-    }
-    else if (i == 1)
-    {
-      out[1] = hexToAscii((rxdata[1] >> 4) & 0x0F);
-      outHex[1] = (rxdata[1] >> 4) & 0x0F;
-    }
-    else
-    {
-      out[2] = hexToAscii(rxdata[1] & 0x0F);
-      outHex[2] = rxdata[1] & 0x0F;
-    }
-  }
-  a = hex2int();
-  HAL_UART_Transmit(&huart2, out, sizeof(out), 10);
-  if (a > 2000)
-    QueTask(toggleLED, LED_PRIORITY, &PQ);
-  else
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
-  //HAL_Delay(1000);
-  ReRunMe(readTemperature, 100, TEMP_PRIORITY);
-}
-
 int main(void)
 {
+  /* USER CODE BEGIN 1 */
+
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
+
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
+
+  /* Configure the system clock */
   SystemClock_Config();
+
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
+
+  /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_SPI1_Init();
-  MX_SPI3_Init();
   MX_USART1_UART_Init();
   MX_USART2_UART_Init();
+  /* USER CODE BEGIN 2 */
 
-  Init();
-  //QueTask(readThreshold, THRESH_PRIORITY, &PQ);
-  QueTask(readTemperature, TEMP_PRIORITY, &PQ);
+  /* USER CODE END 2 */
+
+  /* Init scheduler */
+  osKernelInitialize();
+  /* Create the mutex(es) */
+  /* creation of uart_mutex */
+  uart_mutexHandle = osMutexNew(&uart_mutex_attributes);
+
+  /* USER CODE BEGIN RTOS_MUTEX */
+  /* add mutexes, ... */
+  /* USER CODE END RTOS_MUTEX */
+
+  /* Create the semaphores(s) */
+  /* creation of IRQ_semaphore */
+  IRQ_semaphoreHandle = osSemaphoreNew(1, 1, &IRQ_semaphore_attributes);
+
+  /* USER CODE BEGIN RTOS_SEMAPHORES */
+  /* add semaphores, ... */
+  /* USER CODE END RTOS_SEMAPHORES */
+
+  /* USER CODE BEGIN RTOS_TIMERS */
+  /* start timers, add new ones, ... */
+  /* USER CODE END RTOS_TIMERS */
+
+  /* Create the queue(s) */
+  /* creation of SQ */
+  SQHandle = osMessageQueueNew(16, sizeof(uint16_t), &SQ_attributes);
+
+  /* creation of RX */
+  RXHandle = osMessageQueueNew(16, sizeof(uint16_t), &RX_attributes);
+
+  /* USER CODE BEGIN RTOS_QUEUES */
+  /* add queues, ... */
+  /* USER CODE END RTOS_QUEUES */
+
+  /* Create the thread(s) */
+  /* creation of defaultTask */
+  defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  /* creation of task1 */
+  task1Handle = osThreadNew(StartTask02, NULL, &task1_attributes);
+
+  /* creation of task2 */
+  task2Handle = osThreadNew(StartTask03, NULL, &task2_attributes);
+
+  /* creation of task3 */
+  task3Handle = osThreadNew(StartTask04, NULL, &task3_attributes);
+
+  /* USER CODE BEGIN RTOS_THREADS */
+  /* add threads, ... */
+  /* USER CODE END RTOS_THREADS */
+
+  /* USER CODE BEGIN RTOS_EVENTS */
+  /* add events, ... */
+  /* USER CODE END RTOS_EVENTS */
+
+  /* Start scheduler */
+  __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE);
+  osKernelStart();
+
+  /* We should never get here as control is now taken by the scheduler */
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
   while (1)
   {
-    Dispatch(&PQ);
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
   }
+  /* USER CODE END 3 */
 }
 
 /**
@@ -315,7 +256,8 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1 | RCC_PERIPHCLK_USART2;
+  PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
   PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
@@ -332,82 +274,6 @@ void SystemClock_Config(void)
   HAL_RCCEx_EnableMSIPLLMode();
 }
 
-/**
-  * @brief SPI1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_SPI1_Init(void)
-{
-
-  /* USER CODE BEGIN SPI1_Init 0 */
-
-  /* USER CODE END SPI1_Init 0 */
-
-  /* USER CODE BEGIN SPI1_Init 1 */
-
-  /* USER CODE END SPI1_Init 1 */
-  /* SPI1 parameter configuration*/
-  hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_MASTER;
-  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi1.Init.CRCPolynomial = 7;
-  hspi1.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
-  hspi1.Init.NSSPMode = SPI_NSS_PULSE_ENABLE;
-  if (HAL_SPI_Init(&hspi1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN SPI1_Init 2 */
-
-  /* USER CODE END SPI1_Init 2 */
-}
-
-/**
-  * @brief SPI3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_SPI3_Init(void)
-{
-
-  /* USER CODE BEGIN SPI3_Init 0 */
-
-  /* USER CODE END SPI3_Init 0 */
-
-  /* USER CODE BEGIN SPI3_Init 1 */
-
-  /* USER CODE END SPI3_Init 1 */
-  /* SPI3 parameter configuration*/
-  hspi3.Instance = SPI3;
-  hspi3.Init.Mode = SPI_MODE_SLAVE;
-  hspi3.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi3.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi3.Init.NSS = SPI_NSS_SOFT;
-  hspi3.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi3.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi3.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi3.Init.CRCPolynomial = 7;
-  hspi3.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
-  hspi3.Init.NSSPMode = SPI_NSS_PULSE_DISABLE;
-  if (HAL_SPI_Init(&hspi3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN SPI3_Init 2 */
-
-  /* USER CODE END SPI3_Init 2 */
-}
 /**
   * @brief USART1 Initialization Function
   * @param None
@@ -488,13 +354,12 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_12 | GPIO_PIN_5, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PA12 */
-  GPIO_InitStruct.Pin = GPIO_PIN_12 | GPIO_PIN_5;
+  /*Configure GPIO pin : PA5 */
+  GPIO_InitStruct.Pin = GPIO_PIN_5;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -504,6 +369,185 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 
 /* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void *argument)
+{
+  /*This task handles calculation*/
+  /* USER CODE BEGIN 5 */
+  /* Infinite loop */
+  uint8_t in;
+  int i = 0;
+  char buffer[5];
+  int8_t answer;
+  char an[2];
+  for (;;)
+  {
+
+    in = 0;
+    /* Receive from QR */
+    if (xQueueReceive(RXHandle, &in, 100) == pdPASS)
+    {
+      taskENTER_CRITICAL();
+      xQueueSendToBack(SQHandle, &in, 10); /* Send to SQ */
+      taskEXIT_CRITICAL();
+      if (in == 0x0D) /*user pressed enter*/
+      {
+        answer = calculate(buffer);                      /* Evaltuate the operation */
+        xQueueSendToBack(SQHandle, (uint8_t *)"\n", 10); /* Send end line */
+        sprintf(an, "%i", answer);                       /* Convert to Char buffer */
+        xQueueSendToBack(SQHandle, &an[0], 10);          /* Send first char */
+        xQueueSendToBack(SQHandle, &an[1], 10);          /* Send second char */
+        xQueueSendToBack(SQHandle, (uint8_t *)"\n", 10); /* Send end line */
+
+        i = 0;
+      }
+      else
+      {
+        buffer[i] = in; /* Append to Buffer */
+        i++;
+      }
+    }
+  }
+  /* USER CODE END 5 */
+}
+
+int8_t calculate(char *buffer)
+{
+  uint8_t op;
+  int dig_a, dig_b;
+  dig_a = buffer[0] - '0'; /* convert first digit to char */
+  op = buffer[1];          /* convert operand to char */
+  dig_b = buffer[2] - '0'; /* convert second digit to char */
+  int8_t answer = 0;
+  if (dig_a < 10 && dig_a >= 0 && dig_b < 10 && dig_b >= 0) /* Check if the operands are positive*/
+  {
+    switch (op) /* switch on the operation */
+    {
+    case '+':
+      answer = dig_a + dig_b;
+      break;
+    case '-':
+      answer = dig_a - dig_b;
+      break;
+    case '*':
+      answer = dig_a * dig_b;
+      break;
+    case '/':
+      answer = dig_a / dig_b;
+      break;
+    default:
+      answer = 100;
+    }
+  }
+  return answer;
+}
+/* USER CODE BEGIN Header_StartTask02 */
+/**
+* @brief Function implementing the task1 thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartTask02 */
+void StartTask02(void *argument)
+{
+  /* USER CODE BEGIN StartTask02 */
+  /* Infinite loop */
+
+  uint8_t result;
+  for (;;)
+  {
+    if (xQueueReceive(SQHandle, &result, 10) == pdPASS) /* Receive from QR */
+    {
+      taskENTER_CRITICAL();
+      HAL_UART_Transmit(&huart1, &result, sizeof(result), 10); /* Print to UART */
+      taskEXIT_CRITICAL();
+    }
+    osDelay(1);
+  }
+}
+/* USER CODE END StartTask02 */
+
+/* USER CODE BEGIN Header_StartTask03 */
+/**
+* @brief Function implementing the task2 thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartTask03 */
+void StartTask03(void *argument)
+{
+  /* USER CODE BEGIN StartTask03 */
+  /* Infinite loop */
+  uint8_t in;
+
+  for (;;)
+  {
+
+    if (xSemaphoreTake(IRQ_semaphoreHandle, 100) == pdTRUE) /* Take the semaphore */
+    {
+      taskENTER_CRITICAL();
+
+      if (HAL_UART_Receive(&huart1, &in, sizeof(in), 10) == HAL_OK) /* Receive from UART */
+      {
+        xQueueSendToBack(RXHandle, &in, NULL); /* Write to QR */
+      }
+      taskEXIT_CRITICAL();
+
+      xSemaphoreGive(IRQ_semaphoreHandle);         /* Give back the semaphore */
+      __HAL_UART_ENABLE_IT(&huart1, UART_IT_RXNE); /* Enable the interrupt */
+    }
+
+    osDelay(1);
+  }
+  /* USER CODE END StartTask03 */
+}
+
+/* USER CODE BEGIN Header_StartTask04 */
+/**
+* @brief Function implementing the task3 thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartTask04 */
+void StartTask04(void *argument)
+{
+  /* USER CODE BEGIN StartTask04 */
+  /* Infinite loop */
+  for (;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartTask04 */
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM1 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM1)
+  {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.
